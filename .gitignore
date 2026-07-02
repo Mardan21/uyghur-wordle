@@ -1,0 +1,5 @@
+# Local Claude Code / preview config (not needed for the published site)
+.claude/
+
+# macOS
+.DS_Store

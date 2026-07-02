@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ug-Latn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Uyghur Wordle — Söz Oyuni</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1b;
+    --muted: #787c7e;
+    --border: #d3d6da;
+    --border-dark: #878a8c;
+    --key-bg: #d3d6da;
+    --key-fg: #1a1a1b;
+    --correct: #6aaa64;
+    --present: #c9b458;
+    --absent: #787c7e;
+    --tile-text: #ffffff;
+    --max-width: 500px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    width: 100%;
+    max-width: var(--max-width);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+  }
+  header .title {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+    flex: 1;
+  }
+  header .icons { display: flex; gap: 4px; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.2rem; padding: 6px 8px; border-radius: 6px;
+    color: var(--fg);
+  }
+  .icon-btn:hover { background: #f0f0f0; }
+
+  /* ---------- Game board ---------- */
+  #game {
+    flex: 1;
+    width: 100%;
+    max-width: var(--max-width);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  #board-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    overflow: hidden;
+    padding: 10px;
+  }
+  #board {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    grid-gap: 5px;
+    padding: 10px;
+    box-sizing: border-box;
+    height: 360px;
+    width: 300px;
+  }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); grid-gap: 5px; }
+  .tile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    line-height: 2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    user-select: none;
+    border: 2px solid var(--border);
+    color: var(--fg);
+    background: var(--bg);
+    transition: transform 0.1s ease;
+  }
+  .tile[data-state="empty"] { border-color: var(--border); }
+  .tile[data-state="tbd"] { border-color: var(--border-dark); animation: pop 0.1s ease; }
+  .tile[data-state="correct"] { background: var(--correct); border-color: var(--correct); color: var(--tile-text); }
+  .tile[data-state="present"] { background: var(--present); border-color: var(--present); color: var(--tile-text); }
+  .tile[data-state="absent"]  { background: var(--absent);  border-color: var(--absent);  color: var(--tile-text); }
+
+  @keyframes pop { 0% { transform: scale(0.9); } 100% { transform: scale(1); } }
+  .tile.flip { animation: flip 0.5s ease forwards; }
+  @keyframes flip {
+    0% { transform: rotateX(0); }
+    50% { transform: rotateX(-90deg); }
+    100% { transform: rotateX(0); }
+  }
+  .row.shake { animation: shake 0.5s; }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+  }
+  .row.win .tile { animation: bounce 0.6s ease; }
+  @keyframes bounce {
+    0%, 20% { transform: translateY(0); }
+    40% { transform: translateY(-20px); }
+    50% { transform: translateY(5px); }
+    60% { transform: translateY(-10px); }
+    80% { transform: translateY(2px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* ---------- Keyboard ---------- */
+  #keyboard {
+    width: 100%;
+    max-width: var(--max-width);
+    margin: 0 auto 8px;
+    padding: 0 6px;
+  }
+  .kb-row {
+    display: flex;
+    width: 100%;
+    margin: 0 auto 6px;
+    touch-action: manipulation;
+    gap: 6px;
+  }
+  .kb-row.center { padding: 0 5%; }
+  .key {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    border: 0;
+    border-radius: 4px;
+    height: 52px;
+    flex: 1;
+    cursor: pointer;
+    background: var(--key-bg);
+    color: var(--key-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+  .key.wide { flex: 1.5; font-size: 0.7rem; }
+  .key[data-state="correct"] { background: var(--correct); color: #fff; }
+  .key[data-state="present"] { background: var(--present); color: #fff; }
+  .key[data-state="absent"]  { background: var(--absent);  color: #fff; }
+
+  /* ---------- Toast ---------- */
+  #toast-wrap {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: #1a1a1b;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    animation: fadein 0.1s;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg);
+    color: var(--fg);
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 380px;
+    width: 100%;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { text-align: center; text-transform: uppercase; letter-spacing: 0.06em; font-size: 1rem; margin: 0 0 16px; }
+  .modal .close {
+    position: absolute; top: 12px; right: 12px;
+    background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--fg);
+  }
+  .modal p { font-size: 0.9rem; line-height: 1.4; }
+  .modal .example .row { width: 280px; margin: 6px auto; }
+  .modal .example .tile { font-size: 1.4rem; }
+
+  .stats-row { display: flex; justify-content: center; gap: 18px; margin: 12px 0 20px; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 2rem; font-weight: 700; }
+  .stat .label { font-size: 0.7rem; max-width: 60px; margin: 0 auto; }
+
+  .dist { margin-bottom: 20px; }
+  .dist h3 { text-transform: uppercase; font-size: 0.85rem; text-align: center; letter-spacing: 0.06em; }
+  .dist-row { display: flex; align-items: center; font-size: 0.85rem; margin: 3px 0; gap: 6px; }
+  .dist-row .g { width: 12px; }
+  .dist-bar {
+    background: var(--absent);
+    color: #fff;
+    text-align: right;
+    padding: 2px 6px;
+    font-weight: 700;
+    min-width: 22px;
+    border-radius: 2px;
+  }
+  .dist-bar.highlight { background: var(--correct); }
+
+  .countdown-share { display: flex; align-items: stretch; gap: 16px; }
+  .countdown-share > div { flex: 1; text-align: center; }
+  .countdown-share h3 { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.06em; margin: 0 0 6px; }
+  #countdown { font-size: 1.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .divider { width: 1px; background: var(--border); }
+  #share-btn {
+    background: var(--correct);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 14px 10px;
+    width: 100%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  footer {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 8px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <button class="icon-btn" id="help-btn" title="Qollanma / Help" aria-label="Help">&#9432;</button>
+    <div class="title">UYGHUR WORDLE</div>
+    <div class="icons">
+      <button class="icon-btn" id="stats-btn" title="Statistika / Stats" aria-label="Statistics">&#128202;</button>
+    </div>
+  </header>
+
+  <div id="game">
+    <div id="board-wrap">
+      <div id="board"></div>
+    </div>
+    <div id="keyboard"></div>
+  </div>
+
+  <footer>Her küni yéngi söz — Sherqiy Amérika waqti yérim kéchide yéngilinidu.</footer>
+
+  <div id="toast-wrap"></div>
+
+  <!-- Help modal -->
+  <div class="modal-overlay" id="help-modal">
+    <div class="modal">
+      <button class="close" data-close>&times;</button>
+      <h2>Qandaq Oynaymen</h2>
+      <p>Yoshurun <strong>5 herplik</strong> sözni <strong>6</strong> qétimda tépiñ.</p>
+      <p>Her bir tahminingizdin kéyin, kataklarning renggi sözge qanchilik yéqinlashqanliqingizni körsitidu.</p>
+      <div class="example">
+        <div class="row" style="grid-template-columns:repeat(5,1fr);">
+          <div class="tile" data-state="correct">D</div>
+          <div class="tile" data-state="empty">U</div>
+          <div class="tile" data-state="empty">T</div>
+          <div class="tile" data-state="empty">A</div>
+          <div class="tile" data-state="empty">R</div>
+        </div>
+      </div>
+      <p><strong>D</strong> herpi sözde bar we toghra orunda.</p>
+      <div class="example">
+        <div class="row" style="grid-template-columns:repeat(5,1fr);">
+          <div class="tile" data-state="empty">Q</div>
+          <div class="tile" data-state="present">I</div>
+          <div class="tile" data-state="empty">Z</div>
+          <div class="tile" data-state="empty">I</div>
+          <div class="tile" data-state="empty">L</div>
+        </div>
+      </div>
+      <p><strong>I</strong> herpi sözde bar emma bashqa orunda.</p>
+      <div class="example">
+        <div class="row" style="grid-template-columns:repeat(5,1fr);">
+          <div class="tile" data-state="empty">P</div>
+          <div class="tile" data-state="empty">A</div>
+          <div class="tile" data-state="absent">L</div>
+          <div class="tile" data-state="empty">T</div>
+          <div class="tile" data-state="empty">A</div>
+        </div>
+      </div>
+      <p><strong>L</strong> herpi sözde yoq.</p>
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+      <p style="color:var(--muted);font-size:0.8rem;">Her küni yéngi bir söz chiqidu. Söz Latin yéziqida (ULY) yézilghan.</p>
+    </div>
+  </div>
+
+  <!-- Stats modal -->
+  <div class="modal-overlay" id="stats-modal">
+    <div class="modal">
+      <button class="close" data-close>&times;</button>
+      <h2>Statistika</h2>
+      <div class="stats-row" id="stats-numbers"></div>
+      <div class="dist">
+        <h3>Tahmin Tarqilishi</h3>
+        <div id="dist-rows"></div>
+      </div>
+      <div class="countdown-share">
+        <div>
+          <h3>Kéyinki söz</h3>
+          <div id="countdown">--:--:--</div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;align-items:center;">
+          <button id="share-btn">Ülesh &#128203;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     CONFIG
+     ========================================================= */
+
+  // Solution list (Uyghur Latin / ULY transliteration, 5 characters each).
+  // Edit this array to add/change daily solutions.
+  var WORDS = [
+    "YUREK","QUMUL","PASHA","QIZIL","SAMSA","ALTUN","TURME","TAWUZ",
+    "PALTA","GUZEL","QAGHA","SOMKA","HALTA","TULKE","BOREK","ERKIN",
+    "POYIZ","ZEHER","DUTAR","PELTO","HARAQ","KOCHA","DERIZ","ISHIK",
+    "LAMPA","MANTA","QACHA","TEHSE","PILTE","DUNYA","QONAQ","QISQA",
+    "IGHIZ","SEMIZ","PURAQ","OCHAQ"
+  ];
+
+  // Additional words that are ACCEPTED AS GUESSES but are never the answer.
+  // Like real Wordle, a guess must be a known word — random letters are rejected.
+  // These are common Uyghur (Latin/ULY) 5-letter words. Transliteration varies,
+  // so please review/extend this list; every entry must be UPPERCASE, 5 chars.
+  var EXTRA_VALID_GUESSES = [
+    "KITAB","QELEM","DUKAN","CHACH","KELIN","OGHUL","SAQAL","BULAQ",
+    "ORMAN","QORAL","HAYAT","QANAT","ASMAN","SURET","BOWAQ","QULAQ",
+    "BURUN","QAPAQ","TUXUM","XORAZ","QIZIQ","YIGIT"
+  ];
+
+  // Set of all guesses the game will accept (answers are always valid guesses).
+  var VALID_GUESSES = (function () {
+    var set = {};
+    WORDS.concat(EXTRA_VALID_GUESSES).forEach(function (w) { set[w] = true; });
+    return set;
+  })();
+
+  // Day 0 = first puzzle. Puzzle rolls over at midnight US Eastern time.
+  var EPOCH = "2026-06-15"; // YYYY-MM-DD (interpreted as the first puzzle day)
+
+  var ROWS = 6;
+  var COLS = 5;
+  var STORAGE_KEY = "uyghurWordle.state";
+  var STATS_KEY = "uyghurWordle.stats";
+
+  /* =========================================================
+     DATE / DAILY WORD  (US Eastern time)
+     ========================================================= */
+
+  // Returns "YYYY-MM-DD" for the current moment in America/New_York,
+  // which automatically accounts for EST/EDT daylight-saving shifts.
+  function easternDateString() {
+    var fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit"
+    });
+    return fmt.format(new Date()); // e.g. "2026-06-15"
+  }
+
+  // Whole-day difference between two YYYY-MM-DD strings (parsed as UTC,
+  // so the result is timezone-stable).
+  function dayNumber() {
+    var today = Date.parse(easternDateString() + "T00:00:00Z");
+    var epoch = Date.parse(EPOCH + "T00:00:00Z");
+    return Math.floor((today - epoch) / 86400000);
+  }
+
+  function puzzleIndex() {
+    var n = dayNumber();
+    // Cycle through the list; ((n % len) + len) % len keeps it positive.
+    return ((n % WORDS.length) + WORDS.length) % WORDS.length;
+  }
+
+  var DAY = dayNumber();
+  var SOLUTION = WORDS[puzzleIndex()];
+  var PUZZLE_NO = DAY + 1; // human-friendly "#1, #2, ..."
+
+  /* =========================================================
+     STATE
+     ========================================================= */
+
+  var state = {
+    day: DAY,
+    guesses: [],     // array of submitted guess strings
+    current: "",     // in-progress guess
+    status: "playing" // "playing" | "won" | "lost"
+  };
+
+  function loadState() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (s && s.day === DAY) state = s;
+    } catch (e) {}
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  function defaultStats() {
+    return { played: 0, wins: 0, currentStreak: 0, maxStreak: 0,
+             dist: [0,0,0,0,0,0], lastDay: null };
+  }
+  function loadStats() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STATS_KEY));
+      return s || defaultStats();
+    } catch (e) { return defaultStats(); }
+  }
+  function saveStats(s) {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {}
+  }
+
+  /* =========================================================
+     DOM BUILD
+     ========================================================= */
+
+  var boardEl = document.getElementById("board");
+  var keyboardEl = document.getElementById("keyboard");
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    for (var r = 0; r < ROWS; r++) {
+      var row = document.createElement("div");
+      row.className = "row";
+      row.dataset.row = r;
+      for (var c = 0; c < COLS; c++) {
+        var tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.state = "empty";
+        tile.dataset.row = r;
+        tile.dataset.col = c;
+        row.appendChild(tile);
+      }
+      boardEl.appendChild(row);
+    }
+  }
+
+  var KB_LAYOUT = [
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L"],
+    ["ENTER","Z","X","C","V","B","N","M","BACK"]
+  ];
+
+  function buildKeyboard() {
+    keyboardEl.innerHTML = "";
+    KB_LAYOUT.forEach(function (rowKeys, i) {
+      var row = document.createElement("div");
+      row.className = "kb-row" + (i === 1 ? " center" : "");
+      rowKeys.forEach(function (k) {
+        var key = document.createElement("button");
+        key.className = "key";
+        key.dataset.key = k;
+        if (k === "ENTER") { key.classList.add("wide"); key.textContent = "ENTER"; }
+        else if (k === "BACK") { key.classList.add("wide"); key.innerHTML = "&#9003;"; }
+        else { key.textContent = k; }
+        key.addEventListener("click", function () { handleKey(k); });
+        row.appendChild(key);
+      });
+      keyboardEl.appendChild(row);
+    });
+  }
+
+  function getTile(r, c) {
+    return boardEl.querySelector('.tile[data-row="' + r + '"][data-col="' + c + '"]');
+  }
+  function getRow(r) {
+    return boardEl.querySelector('.row[data-row="' + r + '"]');
+  }
+  function getKey(k) {
+    return keyboardEl.querySelector('.key[data-key="' + k + '"]');
+  }
+
+  /* =========================================================
+     SCORING
+     ========================================================= */
+
+  // Returns array of "correct" | "present" | "absent" for each letter,
+  // with correct Wordle duplicate-letter handling.
+  function scoreGuess(guess, solution) {
+    var result = new Array(COLS).fill("absent");
+    var counts = {};
+    var i, ch;
+    for (i = 0; i < COLS; i++) {
+      ch = solution[i];
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+    // First pass: greens
+    for (i = 0; i < COLS; i++) {
+      if (guess[i] === solution[i]) {
+        result[i] = "correct";
+        counts[guess[i]]--;
+      }
+    }
+    // Second pass: yellows
+    for (i = 0; i < COLS; i++) {
+      if (result[i] === "correct") continue;
+      ch = guess[i];
+      if (counts[ch] > 0) {
+        result[i] = "present";
+        counts[ch]--;
+      }
+    }
+    return result;
+  }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+
+  function renderBoard() {
+    // Submitted guesses
+    state.guesses.forEach(function (guess, r) {
+      var score = scoreGuess(guess, SOLUTION);
+      for (var c = 0; c < COLS; c++) {
+        var tile = getTile(r, c);
+        tile.textContent = guess[c];
+        tile.dataset.state = score[c];
+      }
+    });
+    // Current row
+    var row = state.guesses.length;
+    if (row < ROWS) {
+      for (var c = 0; c < COLS; c++) {
+        var tile = getTile(row, c);
+        var ch = state.current[c] || "";
+        tile.textContent = ch;
+        tile.dataset.state = ch ? "tbd" : "empty";
+      }
+    }
+    renderKeyboard();
+  }
+
+  function renderKeyboard() {
+    // Compute best state per letter across all guesses.
+    var best = {}; // letter -> state
+    var rank = { absent: 1, present: 2, correct: 3 };
+    state.guesses.forEach(function (guess) {
+      var score = scoreGuess(guess, SOLUTION);
+      for (var c = 0; c < COLS; c++) {
+        var ch = guess[c];
+        var st = score[c];
+        if (!best[ch] || rank[st] > rank[best[ch]]) best[ch] = st;
+      }
+    });
+    Object.keys(best).forEach(function (ch) {
+      var key = getKey(ch);
+      if (key) key.dataset.state = best[ch];
+    });
+  }
+
+  /* =========================================================
+     INPUT HANDLING
+     ========================================================= */
+
+  var animating = false;
+
+  function handleKey(k) {
+    if (state.status !== "playing" || animating) return;
+    if (k === "ENTER") return submitGuess();
+    if (k === "BACK") {
+      state.current = state.current.slice(0, -1);
+      saveState(); renderBoard();
+      return;
+    }
+    if (/^[A-Z]$/.test(k) && state.current.length < COLS) {
+      state.current += k;
+      saveState(); renderBoard();
+    }
+  }
+
+  function submitGuess() {
+    if (state.current.length < COLS) {
+      toast("Yéterlik herp yoq");
+      shakeRow(state.guesses.length);
+      return;
+    }
+    var guess = state.current;
+    // Reject guesses that aren't known words (like real Wordle). The guess is
+    // NOT consumed — the letters stay so the player can edit and try again.
+    if (!VALID_GUESSES[guess]) {
+      toast("Söz tizimlikte yoq");
+      shakeRow(state.guesses.length);
+      return;
+    }
+
+    var row = state.guesses.length;
+    state.guesses.push(guess);
+    state.current = "";
+    saveState();
+
+    revealRow(row, guess, function () {
+      if (guess === SOLUTION) {
+        state.status = "won";
+        saveState();
+        recordResult(true, state.guesses.length);
+        winRow(row);
+        var msgs = ["Zor!", "Ajayip!", "Yaxshi!", "Toghra!", "Kapalet!", "Bek yaxshi!"];
+        toast(msgs[Math.min(state.guesses.length - 1, msgs.length - 1)]);
+        setTimeout(openStats, 1600);
+      } else if (state.guesses.length >= ROWS) {
+        state.status = "lost";
+        saveState();
+        recordResult(false, 0);
+        toast(SOLUTION, 4000);
+        setTimeout(openStats, 1600);
+      }
+    });
+  }
+
+  function revealRow(r, guess, done) {
+    animating = true;
+    var score = scoreGuess(guess, SOLUTION);
+    var c = 0;
+    function step() {
+      if (c >= COLS) { animating = false; if (done) done(); return; }
+      var tile = getTile(r, c);
+      tile.classList.add("flip");
+      (function (tile, st) {
+        setTimeout(function () {
+          tile.dataset.state = st;
+          renderKeyboard();
+        }, 250);
+      })(tile, score[c]);
+      tile.addEventListener("animationend", function handler() {
+        tile.removeEventListener("animationend", handler);
+        tile.classList.remove("flip");
+      });
+      c++;
+      setTimeout(step, 300);
+    }
+    step();
+  }
+
+  function winRow(r) {
+    var row = getRow(r);
+    setTimeout(function () { row.classList.add("win"); }, 100);
+  }
+
+  function shakeRow(r) {
+    var row = getRow(r);
+    if (!row) return;
+    row.classList.add("shake");
+    setTimeout(function () { row.classList.remove("shake"); }, 600);
+  }
+
+  /* =========================================================
+     STATS
+     ========================================================= */
+
+  function recordResult(won, guessCount) {
+    var stats = loadStats();
+    if (stats.lastDay === DAY) return; // already recorded today
+    stats.played++;
+    if (won) {
+      stats.wins++;
+      stats.currentStreak = (stats.lastDay === DAY - 1 || stats.lastDay === null)
+        ? stats.currentStreak + 1 : 1;
+      if (stats.currentStreak > stats.maxStreak) stats.maxStreak = stats.currentStreak;
+      if (guessCount >= 1 && guessCount <= 6) stats.dist[guessCount - 1]++;
+    } else {
+      stats.currentStreak = 0;
+    }
+    stats.lastDay = DAY;
+    saveStats(stats);
+  }
+
+  function renderStats() {
+    var stats = loadStats();
+    var winPct = stats.played ? Math.round((stats.wins / stats.played) * 100) : 0;
+    var nums = [
+      { num: stats.played, label: "Oynalghan" },
+      { num: winPct, label: "Utuq %" },
+      { num: stats.currentStreak, label: "Hazirqi seriye" },
+      { num: stats.maxStreak, label: "Eng uzun seriye" }
+    ];
+    document.getElementById("stats-numbers").innerHTML = nums.map(function (s) {
+      return '<div class="stat"><div class="num">' + s.num + '</div><div class="label">' + s.label + '</div></div>';
+    }).join("");
+
+    var maxDist = Math.max.apply(null, stats.dist.concat([1]));
+    var winningRow = (state.status === "won") ? state.guesses.length : -1;
+    var rows = "";
+    for (var i = 0; i < 6; i++) {
+      var val = stats.dist[i];
+      var pct = Math.max((val / maxDist) * 100, 8);
+      var hl = (i + 1 === winningRow) ? " highlight" : "";
+      rows += '<div class="dist-row"><div class="g">' + (i + 1) + '</div>' +
+              '<div class="dist-bar' + hl + '" style="width:' + pct + '%">' + val + '</div></div>';
+    }
+    document.getElementById("dist-rows").innerHTML = rows;
+  }
+
+  /* =========================================================
+     SHARE
+     ========================================================= */
+
+  function buildShareText() {
+    var emoji = { correct: "🟩", present: "🟨", absent: "⬛" };
+    var attempts = (state.status === "won") ? state.guesses.length : "X";
+    var lines = ["Uyghur Wordle #" + PUZZLE_NO + " " + attempts + "/6", ""];
+    state.guesses.forEach(function (guess) {
+      var score = scoreGuess(guess, SOLUTION);
+      lines.push(score.map(function (s) { return emoji[s]; }).join(""));
+    });
+    return lines.join("\n");
+  }
+
+  function share() {
+    if (state.status === "playing") {
+      toast("Oyun téxi tügimidi");
+      return;
+    }
+    var text = buildShareText();
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function () {
+        toast("Netijе köchürüldi!");
+      }).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); toast("Netijе köchürüldi!"); }
+    catch (e) { toast("Köchürüsh bolmidi"); }
+    document.body.removeChild(ta);
+  }
+
+  /* =========================================================
+     COUNTDOWN TO NEXT PUZZLE
+     ========================================================= */
+
+  function msUntilNextEasternMidnight() {
+    // Current time in Eastern, as parts.
+    var now = new Date();
+    var parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour12: false,
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    }).formatToParts(now);
+    var h = 0, m = 0, s = 0;
+    parts.forEach(function (p) {
+      if (p.type === "hour") h = parseInt(p.value, 10) % 24;
+      if (p.type === "minute") m = parseInt(p.value, 10);
+      if (p.type === "second") s = parseInt(p.value, 10);
+    });
+    var secsToday = h * 3600 + m * 60 + s;
+    return (86400 - secsToday) * 1000;
+  }
+
+  var countdownTimer = null;
+  function startCountdown() {
+    function tick() {
+      // A new Eastern day means a new puzzle — reload to load it.
+      if (dayNumber() !== DAY) { location.reload(); return; }
+      var ms = msUntilNextEasternMidnight();
+      var total = Math.floor(ms / 1000);
+      var h = Math.floor(total / 3600);
+      var m = Math.floor((total % 3600) / 60);
+      var s = total % 60;
+      var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+      var el = document.getElementById("countdown");
+      if (el) el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+    }
+    tick();
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  /* =========================================================
+     TOAST + MODALS
+     ========================================================= */
+
+  function toast(msg, ms) {
+    var wrap = document.getElementById("toast-wrap");
+    var el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = "opacity 0.3s";
+      el.style.opacity = "0";
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+    }, ms || 1200);
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add("open");
+  }
+  function closeModal(el) {
+    el.classList.remove("open");
+  }
+  function openStats() {
+    renderStats();
+    startCountdown();
+    openModal("stats-modal");
+  }
+
+  /* =========================================================
+     INIT
+     ========================================================= */
+
+  function bindUI() {
+    document.getElementById("help-btn").addEventListener("click", function () { openModal("help-modal"); });
+    document.getElementById("stats-btn").addEventListener("click", openStats);
+    document.getElementById("share-btn").addEventListener("click", share);
+
+    Array.prototype.forEach.call(document.querySelectorAll(".modal-overlay"), function (overlay) {
+      overlay.addEventListener("click", function (e) {
+        if (e.target === overlay) closeModal(overlay);
+      });
+      var closeBtn = overlay.querySelector("[data-close]");
+      if (closeBtn) closeBtn.addEventListener("click", function () { closeModal(overlay); });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (document.querySelector(".modal-overlay.open")) {
+        if (e.key === "Escape") closeModal(document.querySelector(".modal-overlay.open"));
+        return;
+      }
+      if (e.key === "Enter") handleKey("ENTER");
+      else if (e.key === "Backspace") handleKey("BACK");
+      else {
+        var ch = e.key.toUpperCase();
+        if (/^[A-Z]$/.test(ch)) handleKey(ch);
+      }
+    });
+  }
+
+  function init() {
+    loadState();
+    buildBoard();
+    buildKeyboard();
+    bindUI();
+    renderBoard();
+
+    // If the player already finished today, re-show colors immediately.
+    if (state.status !== "playing") {
+      setTimeout(openStats, 400);
+    }
+
+    // Watch for the Eastern-time day rolling over while the tab stays open,
+    // so an idle page picks up the new puzzle without a manual refresh.
+    setInterval(function () {
+      if (dayNumber() !== DAY) location.reload();
+    }, 30000);
+
+    // First-time visitors see the how-to-play guide.
+    try {
+      if (!localStorage.getItem("uyghurWordle.seenHelp")) {
+        openModal("help-modal");
+        localStorage.setItem("uyghurWordle.seenHelp", "1");
+      }
+    } catch (e) {}
+
+    // Tell a parent page (e.g. Squarespace/WordPress iframe) our height,
+    // so the embed can resize itself. Safe no-op when not embedded.
+    function postHeight() {
+      try {
+        parent.postMessage({ uyghurWordleHeight: document.body.scrollHeight }, "*");
+      } catch (e) {}
+    }
+    window.addEventListener("load", postHeight);
+    window.addEventListener("resize", postHeight);
+    setTimeout(postHeight, 500);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
