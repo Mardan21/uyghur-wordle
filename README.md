@@ -1,6 +1,6 @@
-# Uyghur Wordle
+# Sozle
 
-A self-contained, single-file Wordle clone that uses Uyghur (Latin/ULY) 5-letter words.
+**Sozle** is a self-contained, single-file Wordle clone that uses Uyghur (Latin/ULY) 5-letter words.
 The puzzle changes every day at **midnight US Eastern time**, exactly like the New York Times Wordle.
 
 Everything lives in [`index.html`](index.html) — no build step, no server, no dependencies.
@@ -103,7 +103,7 @@ Note the final URL.
 <iframe
   src="https://YOUR-HOST/uyghur-wordle/index.html"
   style="width:100%; max-width:520px; height:760px; border:0; margin:0 auto; display:block;"
-  title="Uyghur Wordle"
+  title="Sozle"
   loading="lazy"></iframe>
 ```
 
@@ -120,7 +120,7 @@ embedding page to make the iframe grow/shrink to fit:
 <script>
 window.addEventListener("message", function (e) {
   if (e.data && e.data.uyghurWordleHeight) {
-    var f = document.querySelector('iframe[title="Uyghur Wordle"]');
+    var f = document.querySelector('iframe[title="Sozle"]');
     if (f) f.style.height = e.data.uyghurWordleHeight + "px";
   }
 });

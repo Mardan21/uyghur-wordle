@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Uyghur Wordle — Söz Oyuni</title>
+<title>Sozle — Uyghur Söz Oyuni</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -282,7 +282,7 @@
 <body>
   <header>
     <button class="icon-btn" id="help-btn" title="Qollanma / Help" aria-label="Help">&#9432;</button>
-    <div class="title">UYGHUR WORDLE</div>
+    <div class="title">SOZLE</div>
     <div class="icons">
       <button class="icon-btn" id="stats-btn" title="Statistika / Stats" aria-label="Statistics">&#128202;</button>
     </div>
@@ -761,7 +761,7 @@
   function buildShareText() {
     var emoji = { correct: "🟩", present: "🟨", absent: "⬛" };
     var attempts = (state.status === "won") ? state.guesses.length : "X";
-    var lines = ["Uyghur Wordle #" + PUZZLE_NO + " " + attempts + "/6", ""];
+    var lines = ["Sozle #" + PUZZLE_NO + " " + attempts + "/6", ""];
     state.guesses.forEach(function (guess) {
       var score = scoreGuess(guess, SOLUTION);
       lines.push(score.map(function (s) { return emoji[s]; }).join(""));
